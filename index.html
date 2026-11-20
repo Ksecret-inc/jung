@@ -1,0 +1,505 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>매출 대시보드 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg: #f6f7f9; --card: #ffffff; --text: #1d2330; --muted: #6b7280; --line: #e5e7eb;
+  --accent: #2f6fde; --accent-soft: #e6eefc; --chip: #f1f3f6;
+  --c1: #2f6fde; --c2: #e07b39; --c3: #2a9d8f; --c4: #c2477a; --c5: #8a6bd1;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12151b; --card: #1b2029; --text: #e8ebf0; --muted: #9aa3b2; --line: #2b313c;
+    --accent: #6c9bf0; --accent-soft: #24324a; --chip: #252b36;
+    --c1: #6c9bf0; --c2: #f0a06b; --c3: #4fc2b3; --c4: #e57aa6; --c5: #ab93e8;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12151b; --card: #1b2029; --text: #e8ebf0; --muted: #9aa3b2; --line: #2b313c;
+  --accent: #6c9bf0; --accent-soft: #24324a; --chip: #252b36;
+  --c1: #6c9bf0; --c2: #f0a06b; --c3: #4fc2b3; --c4: #e57aa6; --c5: #ab93e8;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text);
+  font-family: "Noto Sans KR", system-ui, -apple-system, "Segoe UI", sans-serif; font-size: 14px; }
+.wrap { max-width: 1200px; margin: 0 auto; padding: 24px 16px 48px; }
+header { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+h1 { font-size: 22px; margin: 0; }
+.sub { color: var(--muted); margin-top: 4px; }
+button { font: inherit; color: inherit; cursor: pointer; }
+.reset { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 8px 14px; }
+.reset:hover { border-color: var(--accent); color: var(--accent); }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+.filters { display: grid; gap: 10px; margin-bottom: 16px; }
+.frow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.filters > .frow { flex-wrap: nowrap; align-items: flex-start; }
+.filters > .frow > .flabel { padding-top: 5px; }
+.filters > .frow > .frow { flex: 1; min-width: 0; }
+.flabel { width: 40px; color: var(--muted); font-weight: 500; flex-shrink: 0; }
+.chip { border: 1px solid transparent; background: var(--chip); border-radius: 999px; padding: 5px 12px; font-size: 13px; }
+.chip:hover { border-color: var(--line); }
+.chip.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 500; }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; }
+.kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+.kpi .k { color: var(--muted); font-size: 13px; }
+.kpi .v { font-size: 24px; font-weight: 700; margin-top: 6px; font-variant-numeric: tabular-nums; }
+.kpi .n { color: var(--muted); font-size: 12px; margin-top: 4px; }
+.grid { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; margin-bottom: 12px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+h2 { font-size: 15px; margin: 0 0 4px; }
+.hint { color: var(--muted); font-size: 12px; margin-bottom: 10px; }
+.chart { position: relative; height: 280px; }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th, td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; }
+th { color: var(--muted); font-weight: 500; font-size: 13px; }
+th.sort { cursor: pointer; user-select: none; }
+th.sort:hover { color: var(--accent); }
+.scroll { overflow-x: auto; }
+.heat td.cell { cursor: pointer; }
+.heat td.cell:hover { outline: 2px solid var(--accent); outline-offset: -2px; }
+.detail { max-height: 420px; overflow: auto; }
+.detail thead th { position: sticky; top: 0; background: var(--card); }
+.empty { color: var(--muted); text-align: center; padding: 24px; }
+@media (max-width: 900px) {
+  .kpis { grid-template-columns: repeat(2, 1fr); }
+  .grid, .grid2 { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>매출 대시보드 2026</h1>
+      <div class="sub">[교육용 더미] 매출 데이터 · 2026-01 ~ 2026-10 · 칩이나 차트를 클릭해 필터링</div>
+    </div>
+    <button class="reset" id="reset">필터 초기화</button>
+  </header>
+
+  <div class="card filters">
+    <div class="frow"><span class="flabel">월</span><div class="frow" id="f-month"></div></div>
+    <div class="frow"><span class="flabel">제품</span><div class="frow" id="f-product"></div></div>
+    <div class="frow"><span class="flabel">채널</span><div class="frow" id="f-channel"></div></div>
+  </div>
+
+  <div class="kpis">
+    <div class="card kpi"><div class="k">총 매출</div><div class="v" id="k-rev"></div><div class="n" id="k-rev-n"></div></div>
+    <div class="card kpi"><div class="k">판매수량</div><div class="v" id="k-qty"></div><div class="n" id="k-qty-n"></div></div>
+    <div class="card kpi"><div class="k">평균 판매단가</div><div class="v" id="k-asp"></div><div class="n">매출 ÷ 판매수량</div></div>
+    <div class="card kpi"><div class="k">평균 할인율</div><div class="v" id="k-disc"></div><div class="n">정가 대비 할인 금액 비중</div></div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>월별 매출</h2><div class="hint">채널별 누적 · 막대를 클릭하면 해당 월 선택</div>
+      <div class="chart"><canvas id="ch-month"></canvas></div>
+    </div>
+    <div class="card">
+      <h2>채널별 매출</h2><div class="hint">막대를 클릭하면 해당 채널 선택</div>
+      <div class="chart"><canvas id="ch-channel"></canvas></div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h2>제품별 매출</h2><div class="hint">막대를 클릭하면 해당 제품 선택</div>
+      <div class="chart"><canvas id="ch-product"></canvas></div>
+    </div>
+    <div class="card">
+      <h2>제품 × 채널 매출 (백만원)</h2><div class="hint">칸을 클릭하면 제품과 채널을 함께 선택</div>
+      <div class="scroll"><table class="heat" id="heat"></table></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>상세 데이터</h2><div class="hint" id="detail-hint"></div>
+    <div class="detail"><table id="detail"></table></div>
+  </div>
+</div>
+
+<script>
+const ROWS = [
+["2026-01","데일리 선크림","올리브영",439,19000,20,6672800],
+["2026-01","데일리 선크림","자사몰",209,19000,10,3573900],
+["2026-01","데일리 선크림","쿠팡",330,19000,20,5016000],
+["2026-01","데일리 선크림","아마존(해외)",237,19000,0,4503000],
+["2026-01","진정 시카 앰플","올리브영",600,24000,0,14400000],
+["2026-01","진정 시카 앰플","자사몰",300,24000,10,6480000],
+["2026-01","진정 시카 앰플","쿠팡",487,24000,0,11688000],
+["2026-01","진정 시카 앰플","아마존(해외)",404,24000,5,9211200],
+["2026-01","수분 장벽 크림","올리브영",587,28000,0,16436000],
+["2026-01","수분 장벽 크림","자사몰",323,28000,0,9044000],
+["2026-01","수분 장벽 크림","쿠팡",502,28000,0,14056000],
+["2026-01","수분 장벽 크림","아마존(해외)",351,28000,15,8353800],
+["2026-01","에센셜 마스크팩(10매)","올리브영",795,15000,5,11328750],
+["2026-01","에센셜 마스크팩(10매)","자사몰",324,15000,5,4617000],
+["2026-01","에센셜 마스크팩(10매)","쿠팡",521,15000,20,6252000],
+["2026-01","에센셜 마스크팩(10매)","아마존(해외)",422,15000,5,6013500],
+["2026-01","약산성 클렌징폼","올리브영",746,12000,0,8952000],
+["2026-01","약산성 클렌징폼","자사몰",369,12000,10,3985200],
+["2026-01","약산성 클렌징폼","쿠팡",497,12000,10,5367600],
+["2026-01","약산성 클렌징폼","아마존(해외)",371,12000,0,4452000],
+["2026-02","데일리 선크림","올리브영",566,19000,10,9678600],
+["2026-02","데일리 선크림","자사몰",242,19000,10,4138200],
+["2026-02","데일리 선크림","쿠팡",365,19000,0,6935000],
+["2026-02","데일리 선크림","아마존(해외)",305,19000,0,5795000],
+["2026-02","진정 시카 앰플","올리브영",595,24000,0,14280000],
+["2026-02","진정 시카 앰플","자사몰",318,24000,0,7632000],
+["2026-02","진정 시카 앰플","쿠팡",456,24000,15,9302400],
+["2026-02","진정 시카 앰플","아마존(해외)",388,24000,0,9312000],
+["2026-02","수분 장벽 크림","올리브영",650,28000,0,18200000],
+["2026-02","수분 장벽 크림","자사몰",267,28000,10,6728400],
+["2026-02","수분 장벽 크림","쿠팡",426,28000,20,9542400],
+["2026-02","수분 장벽 크림","아마존(해외)",439,28000,10,11062800],
+["2026-02","에센셜 마스크팩(10매)","올리브영",921,15000,20,11052000],
+["2026-02","에센셜 마스크팩(10매)","자사몰",394,15000,5,5614500],
+["2026-02","에센셜 마스크팩(10매)","쿠팡",627,15000,10,8464500],
+["2026-02","에센셜 마스크팩(10매)","아마존(해외)",537,15000,0,8055000],
+["2026-02","약산성 클렌징폼","올리브영",715,12000,20,6864000],
+["2026-02","약산성 클렌징폼","자사몰",371,12000,0,4452000],
+["2026-02","약산성 클렌징폼","쿠팡",528,12000,10,5702400],
+["2026-02","약산성 클렌징폼","아마존(해외)",481,12000,0,5772000],
+["2026-03","데일리 선크림","올리브영",741,19000,0,14079000],
+["2026-03","데일리 선크림","자사몰",405,19000,10,6925500],
+["2026-03","데일리 선크림","쿠팡",496,19000,15,8010400],
+["2026-03","데일리 선크림","아마존(해외)",578,19000,10,9883800],
+["2026-03","진정 시카 앰플","올리브영",664,24000,20,12748800],
+["2026-03","진정 시카 앰플","자사몰",292,24000,5,6657600],
+["2026-03","진정 시카 앰플","쿠팡",373,24000,0,8952000],
+["2026-03","진정 시카 앰플","아마존(해외)",342,24000,5,7797600],
+["2026-03","수분 장벽 크림","올리브영",506,28000,5,13459600],
+["2026-03","수분 장벽 크림","자사몰",246,28000,0,6888000],
+["2026-03","수분 장벽 크림","쿠팡",314,28000,20,7033600],
+["2026-03","수분 장벽 크림","아마존(해외)",303,28000,15,7211400],
+["2026-03","에센셜 마스크팩(10매)","올리브영",844,15000,15,10761000],
+["2026-03","에센셜 마스크팩(10매)","자사몰",391,15000,0,5865000],
+["2026-03","에센셜 마스크팩(10매)","쿠팡",546,15000,0,8190000],
+["2026-03","에센셜 마스크팩(10매)","아마존(해외)",595,15000,20,7140000],
+["2026-03","약산성 클렌징폼","올리브영",733,12000,5,8356200],
+["2026-03","약산성 클렌징폼","자사몰",308,12000,10,3326400],
+["2026-03","약산성 클렌징폼","쿠팡",425,12000,20,4080000],
+["2026-03","약산성 클렌징폼","아마존(해외)",389,12000,0,4668000],
+["2026-04","데일리 선크림","올리브영",968,19000,20,14713600],
+["2026-04","데일리 선크림","자사몰",554,19000,0,10526000],
+["2026-04","데일리 선크림","쿠팡",710,19000,5,12815500],
+["2026-04","데일리 선크림","아마존(해외)",835,19000,20,12692000],
+["2026-04","진정 시카 앰플","올리브영",680,24000,10,14688000],
+["2026-04","진정 시카 앰플","자사몰",261,24000,5,5950800],
+["2026-04","진정 시카 앰플","쿠팡",503,24000,5,11468400],
+["2026-04","진정 시카 앰플","아마존(해외)",396,24000,5,9028800],
+["2026-04","수분 장벽 크림","올리브영",406,28000,0,11368000],
+["2026-04","수분 장벽 크림","자사몰",204,28000,10,5140800],
+["2026-04","수분 장벽 크림","쿠팡",260,28000,0,7280000],
+["2026-04","수분 장벽 크림","아마존(해외)",235,28000,0,6580000],
+["2026-04","에센셜 마스크팩(10매)","올리브영",737,15000,10,9949500],
+["2026-04","에센셜 마스크팩(10매)","자사몰",415,15000,0,6225000],
+["2026-04","에센셜 마스크팩(10매)","쿠팡",591,15000,0,8865000],
+["2026-04","에센셜 마스크팩(10매)","아마존(해외)",489,15000,15,6234750],
+["2026-04","약산성 클렌징폼","올리브영",691,12000,20,6633600],
+["2026-04","약산성 클렌징폼","자사몰",347,12000,0,4164000],
+["2026-04","약산성 클렌징폼","쿠팡",513,12000,20,4924800],
+["2026-04","약산성 클렌징폼","아마존(해외)",466,12000,15,4753200],
+["2026-05","데일리 선크림","올리브영",1416,19000,15,22868400],
+["2026-05","데일리 선크림","자사몰",590,19000,10,10089000],
+["2026-05","데일리 선크림","쿠팡",958,19000,5,17291900],
+["2026-05","데일리 선크림","아마존(해외)",1103,19000,5,19909150],
+["2026-05","진정 시카 앰플","올리브영",662,24000,20,12710400],
+["2026-05","진정 시카 앰플","자사몰",308,24000,5,7022400],
+["2026-05","진정 시카 앰플","쿠팡",422,24000,20,8102400],
+["2026-05","진정 시카 앰플","아마존(해외)",434,24000,10,9374400],
+["2026-05","수분 장벽 크림","올리브영",328,28000,10,8265600],
+["2026-05","수분 장벽 크림","자사몰",121,28000,5,3218600],
+["2026-05","수분 장벽 크림","쿠팡",221,28000,0,6188000],
+["2026-05","수분 장벽 크림","아마존(해외)",247,28000,5,6570200],
+["2026-05","에센셜 마스크팩(10매)","올리브영",751,15000,20,9012000],
+["2026-05","에센셜 마스크팩(10매)","자사몰",396,15000,0,5940000],
+["2026-05","에센셜 마스크팩(10매)","쿠팡",594,15000,20,7128000],
+["2026-05","에센셜 마스크팩(10매)","아마존(해외)",552,15000,0,8280000],
+["2026-05","약산성 클렌징폼","올리브영",747,12000,10,8067600],
+["2026-05","약산성 클렌징폼","자사몰",348,12000,10,3758400],
+["2026-05","약산성 클렌징폼","쿠팡",480,12000,10,5184000],
+["2026-05","약산성 클렌징폼","아마존(해외)",587,12000,10,6339600],
+["2026-06","데일리 선크림","올리브영",1812,19000,20,27542400],
+["2026-06","데일리 선크림","자사몰",647,19000,5,11678350],
+["2026-06","데일리 선크림","쿠팡",1025,19000,5,18501250],
+["2026-06","데일리 선크림","아마존(해외)",1108,19000,5,19999400],
+["2026-06","진정 시카 앰플","올리브영",520,24000,20,9984000],
+["2026-06","진정 시카 앰플","자사몰",281,24000,5,6406800],
+["2026-06","진정 시카 앰플","쿠팡",386,24000,20,7411200],
+["2026-06","진정 시카 앰플","아마존(해외)",473,24000,15,9649200],
+["2026-06","수분 장벽 크림","올리브영",307,28000,5,8166200],
+["2026-06","수분 장벽 크림","자사몰",117,28000,10,2948400],
+["2026-06","수분 장벽 크림","쿠팡",170,28000,10,4284000],
+["2026-06","수분 장벽 크림","아마존(해외)",189,28000,5,5027400],
+["2026-06","에센셜 마스크팩(10매)","올리브영",905,15000,5,12896250],
+["2026-06","에센셜 마스크팩(10매)","자사몰",329,15000,10,4441500],
+["2026-06","에센셜 마스크팩(10매)","쿠팡",642,15000,0,9630000],
+["2026-06","에센셜 마스크팩(10매)","아마존(해외)",595,15000,15,7586250],
+["2026-06","약산성 클렌징폼","올리브영",718,12000,0,8616000],
+["2026-06","약산성 클렌징폼","자사몰",279,12000,10,3013200],
+["2026-06","약산성 클렌징폼","쿠팡",520,12000,15,5304000],
+["2026-06","약산성 클렌징폼","아마존(해외)",584,12000,10,6307200],
+["2026-07","데일리 선크림","올리브영",1657,19000,15,26760550],
+["2026-07","데일리 선크림","자사몰",874,19000,10,14945400],
+["2026-07","데일리 선크림","쿠팡",1148,19000,10,19630800],
+["2026-07","데일리 선크림","아마존(해외)",1216,19000,15,19638400],
+["2026-07","진정 시카 앰플","올리브영",623,24000,0,14952000],
+["2026-07","진정 시카 앰플","자사몰",323,24000,0,7752000],
+["2026-07","진정 시카 앰플","쿠팡",395,24000,20,7584000],
+["2026-07","진정 시카 앰플","아마존(해외)",546,24000,10,11793600],
+["2026-07","수분 장벽 크림","올리브영",310,28000,15,7378000],
+["2026-07","수분 장벽 크림","자사몰",139,28000,5,3697400],
+["2026-07","수분 장벽 크림","쿠팡",200,28000,0,5600000],
+["2026-07","수분 장벽 크림","아마존(해외)",191,28000,0,5348000],
+["2026-07","에센셜 마스크팩(10매)","올리브영",878,15000,10,11853000],
+["2026-07","에센셜 마스크팩(10매)","자사몰",391,15000,5,5571750],
+["2026-07","에센셜 마스크팩(10매)","쿠팡",634,15000,0,9510000],
+["2026-07","에센셜 마스크팩(10매)","아마존(해외)",623,15000,20,7476000],
+["2026-07","약산성 클렌징폼","올리브영",668,12000,15,6813600],
+["2026-07","약산성 클렌징폼","자사몰",353,12000,0,4236000],
+["2026-07","약산성 클렌징폼","쿠팡",501,12000,15,5110200],
+["2026-07","약산성 클렌징폼","아마존(해외)",627,12000,15,6395400],
+["2026-08","데일리 선크림","올리브영",1506,19000,15,24321900],
+["2026-08","데일리 선크림","자사몰",771,19000,10,13184100],
+["2026-08","데일리 선크림","쿠팡",1230,19000,10,21033000],
+["2026-08","데일리 선크림","아마존(해외)",1333,19000,0,25327000],
+["2026-08","진정 시카 앰플","올리브영",670,24000,15,13668000],
+["2026-08","진정 시카 앰플","자사몰",296,24000,5,6748800],
+["2026-08","진정 시카 앰플","쿠팡",505,24000,15,10302000],
+["2026-08","진정 시카 앰플","아마존(해외)",486,24000,20,9331200],
+["2026-08","수분 장벽 크림","올리브영",309,28000,0,8652000],
+["2026-08","수분 장벽 크림","자사몰",135,28000,10,3402000],
+["2026-08","수분 장벽 크림","쿠팡",210,28000,0,5880000],
+["2026-08","수분 장벽 크림","아마존(해외)",222,28000,10,5594400],
+["2026-08","에센셜 마스크팩(10매)","올리브영",964,15000,15,12291000],
+["2026-08","에센셜 마스크팩(10매)","자사몰",455,15000,5,6483750],
+["2026-08","에센셜 마스크팩(10매)","쿠팡",651,15000,10,8788500],
+["2026-08","에센셜 마스크팩(10매)","아마존(해외)",734,15000,0,11010000],
+["2026-08","약산성 클렌징폼","올리브영",829,12000,0,9948000],
+["2026-08","약산성 클렌징폼","자사몰",314,12000,0,3768000],
+["2026-08","약산성 클렌징폼","쿠팡",505,12000,20,4848000],
+["2026-08","약산성 클렌징폼","아마존(해외)",608,12000,0,7296000],
+["2026-09","데일리 선크림","올리브영",1133,19000,0,21527000],
+["2026-09","데일리 선크림","자사몰",424,19000,0,8056000],
+["2026-09","데일리 선크림","쿠팡",672,19000,10,11491200],
+["2026-09","데일리 선크림","아마존(해외)",791,19000,0,15029000],
+["2026-09","진정 시카 앰플","올리브영",637,24000,15,12994800],
+["2026-09","진정 시카 앰플","자사몰",235,24000,0,5640000],
+["2026-09","진정 시카 앰플","쿠팡",466,24000,20,8947200],
+["2026-09","진정 시카 앰플","아마존(해외)",451,24000,0,10824000],
+["2026-09","수분 장벽 크림","올리브영",425,28000,10,10710000],
+["2026-09","수분 장벽 크림","자사몰",200,28000,5,5320000],
+["2026-09","수분 장벽 크림","쿠팡",345,28000,0,9660000],
+["2026-09","수분 장벽 크림","아마존(해외)",369,28000,0,10332000],
+["2026-09","에센셜 마스크팩(10매)","올리브영",888,15000,10,11988000],
+["2026-09","에센셜 마스크팩(10매)","자사몰",307,15000,5,4374750],
+["2026-09","에센셜 마스크팩(10매)","쿠팡",638,15000,0,9570000],
+["2026-09","에센셜 마스크팩(10매)","아마존(해외)",768,15000,0,11520000],
+["2026-09","약산성 클렌징폼","올리브영",739,12000,10,7981200],
+["2026-09","약산성 클렌징폼","자사몰",354,12000,10,3823200],
+["2026-09","약산성 클렌징폼","쿠팡",537,12000,10,5799600],
+["2026-09","약산성 클렌징폼","아마존(해외)",616,12000,0,7392000],
+["2026-10","데일리 선크림","올리브영",773,19000,5,13952650],
+["2026-10","데일리 선크림","자사몰",317,19000,5,5721850],
+["2026-10","데일리 선크림","쿠팡",541,19000,0,10279000],
+["2026-10","데일리 선크림","아마존(해외)",668,19000,10,11422800],
+["2026-10","진정 시카 앰플","올리브영",573,24000,0,13752000],
+["2026-10","진정 시카 앰플","자사몰",321,24000,5,7318800],
+["2026-10","진정 시카 앰플","쿠팡",376,24000,0,9024000],
+["2026-10","진정 시카 앰플","아마존(해외)",536,24000,0,12864000],
+["2026-10","수분 장벽 크림","올리브영",655,28000,0,18340000],
+["2026-10","수분 장벽 크림","자사몰",277,28000,10,6980400],
+["2026-10","수분 장벽 크림","쿠팡",432,28000,10,10886400],
+["2026-10","수분 장벽 크림","아마존(해외)",436,28000,15,10376800],
+["2026-10","에센셜 마스크팩(10매)","올리브영",776,15000,10,10476000],
+["2026-10","에센셜 마스크팩(10매)","자사몰",376,15000,5,5358000],
+["2026-10","에센셜 마스크팩(10매)","쿠팡",528,15000,20,6336000],
+["2026-10","에센셜 마스크팩(10매)","아마존(해외)",675,15000,0,10125000],
+["2026-10","약산성 클렌징폼","올리브영",772,12000,20,7411200],
+["2026-10","약산성 클렌징폼","자사몰",340,12000,10,3672000],
+["2026-10","약산성 클렌징폼","쿠팡",530,12000,10,5724000],
+["2026-10","약산성 클렌징폼","아마존(해외)",558,12000,15,5691600]
+];
+const COLS = ["month", "product", "channel", "qty", "price", "disc", "rev"];
+const data = ROWS.map(r => Object.fromEntries(COLS.map((c, i) => [c, r[i]])));
+const uniq = k => [...new Set(data.map(d => d[k]))];
+const MONTHS = uniq("month"), PRODUCTS = uniq("product"), CHANNELS = uniq("channel");
+const sel = { month: new Set(), product: new Set(), channel: new Set() };
+
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const chColor = i => css("--c" + (i + 1));
+const won = v => v.toLocaleString("ko-KR") + "원";
+const eok = v => v >= 1e8 ? (v / 1e8).toFixed(2) + "억원" : (v / 1e4).toLocaleString("ko-KR", { maximumFractionDigits: 0 }) + "만원";
+const mLabel = m => Number(m.slice(5)) + "월";
+
+function pass(d, skip) {
+  return ["month", "product", "channel"].every(k => k === skip || !sel[k].size || sel[k].has(d[k]));
+}
+function sum(rows, f) { return rows.reduce((a, d) => a + f(d), 0); }
+function toggle(key, val) { sel[key].has(val) ? sel[key].delete(val) : sel[key].add(val); render(); }
+
+function renderChips() {
+  const groups = { month: [MONTHS, mLabel], product: [PRODUCTS, x => x], channel: [CHANNELS, x => x] };
+  for (const [key, [vals, lab]] of Object.entries(groups)) {
+    const box = document.getElementById("f-" + key);
+    box.innerHTML = "";
+    const all = document.createElement("button");
+    all.className = "chip" + (sel[key].size ? "" : " on");
+    all.textContent = "전체";
+    all.onclick = () => { sel[key].clear(); render(); };
+    box.appendChild(all);
+    vals.forEach((v, i) => {
+      const b = document.createElement("button");
+      b.className = "chip" + (sel[key].has(v) ? " on" : "");
+      b.innerHTML = (key === "channel" ? `<span class="dot" style="background:${chColor(i)}"></span>` : "") + lab(v);
+      b.onclick = () => toggle(key, v);
+      box.appendChild(b);
+    });
+  }
+}
+
+function renderKpis(rows) {
+  const rev = sum(rows, d => d.rev), qty = sum(rows, d => d.qty), list = sum(rows, d => d.qty * d.price);
+  document.getElementById("k-rev").textContent = eok(rev);
+  document.getElementById("k-rev-n").textContent = won(rev);
+  document.getElementById("k-qty").textContent = qty.toLocaleString("ko-KR") + "개";
+  document.getElementById("k-qty-n").textContent = rows.length + "건";
+  document.getElementById("k-asp").textContent = qty ? won(Math.round(rev / qty)) : "-";
+  document.getElementById("k-disc").textContent = list ? ((1 - rev / list) * 100).toFixed(1) + "%" : "-";
+}
+
+const charts = {};
+function baseOpts(onPick, horizontal) {
+  const grid = css("--line"), tick = css("--muted");
+  const valAxis = { grid: { color: grid }, ticks: { color: tick, callback: v => (v / 1e6).toLocaleString("ko-KR") + "M" } };
+  const catAxis = { grid: { display: false }, ticks: { color: tick } };
+  return {
+    responsive: true, maintainAspectRatio: false, indexAxis: horizontal ? "y" : "x",
+    animation: { duration: 250 },
+    onClick: (e, els, chart) => { if (els.length) onPick(els[0].index); },
+    onHover: (e, els) => { e.native.target.style.cursor = els.length ? "pointer" : "default"; },
+    plugins: {
+      legend: { display: false },
+      tooltip: { callbacks: { label: c => `${c.dataset.label ? c.dataset.label + ": " : ""}${won(c.raw)}` } }
+    },
+    scales: horizontal ? { x: valAxis, y: catAxis } : { x: { ...catAxis, stacked: true }, y: { ...valAxis, stacked: true } }
+  };
+}
+function upsert(id, cfg) {
+  if (charts[id]) { charts[id].data = cfg.data; charts[id].options = cfg.options; charts[id].update(); }
+  else charts[id] = new Chart(document.getElementById(id), cfg);
+}
+const dim = (color, on) => on ? color : color + "40";
+
+function renderCharts() {
+  // 월별: 다른 필터는 적용하고, 선택된 월은 진하게 표시
+  const mRows = data.filter(d => pass(d, "month"));
+  const opts = baseOpts(i => toggle("month", MONTHS[i]));
+  opts.plugins.legend = { display: true, position: "bottom", labels: { color: css("--muted"), boxWidth: 10, boxHeight: 10 } };
+  opts.plugins.tooltip.callbacks.footer = items => "합계: " + won(items.reduce((a, c) => a + c.raw, 0));
+  opts.interaction = { mode: "index", intersect: false };
+  upsert("ch-month", {
+    type: "bar",
+    data: {
+      labels: MONTHS.map(mLabel),
+      datasets: CHANNELS.map((c, ci) => ({
+        label: c,
+        data: MONTHS.map(m => sum(mRows.filter(d => d.month === m && d.channel === c), d => d.rev)),
+        backgroundColor: MONTHS.map(m => dim(chColor(ci), !sel.month.size || sel.month.has(m))),
+        borderRadius: 2
+      }))
+    },
+    options: opts
+  });
+
+  const cRows = data.filter(d => pass(d, "channel"));
+  upsert("ch-channel", {
+    type: "bar",
+    data: { labels: CHANNELS, datasets: [{
+      data: CHANNELS.map(c => sum(cRows.filter(d => d.channel === c), d => d.rev)),
+      backgroundColor: CHANNELS.map((c, i) => dim(chColor(i), !sel.channel.size || sel.channel.has(c))),
+      borderRadius: 4 }] },
+    options: baseOpts(i => toggle("channel", CHANNELS[i]), true)
+  });
+
+  const pRows = data.filter(d => pass(d, "product"));
+  const acc = css("--accent");
+  upsert("ch-product", {
+    type: "bar",
+    data: { labels: PRODUCTS, datasets: [{
+      data: PRODUCTS.map(p => sum(pRows.filter(d => d.product === p), d => d.rev)),
+      backgroundColor: PRODUCTS.map(p => dim(acc, !sel.product.size || sel.product.has(p))),
+      borderRadius: 4 }] },
+    options: baseOpts(i => toggle("product", PRODUCTS[i]), true)
+  });
+}
+
+function renderHeat() {
+  // 히트맵은 월 필터만 적용하고, 제품·채널 선택은 강조로 표시
+  const base = data.filter(d => !sel.month.size || sel.month.has(d.month));
+  const cell = (p, c) => sum(base.filter(d => d.product === p && d.channel === c), d => d.rev);
+  const vals = PRODUCTS.flatMap(p => CHANNELS.map(c => cell(p, c)));
+  const max = Math.max(...vals, 1);
+  const acc = css("--accent");
+  let h = "<thead><tr><th>제품</th>" + CHANNELS.map(c => `<th>${c}</th>`).join("") + "<th>합계</th></tr></thead><tbody>";
+  PRODUCTS.forEach(p => {
+    let tot = 0;
+    h += `<tr><td>${p}</td>`;
+    CHANNELS.forEach(c => {
+      const v = cell(p, c); tot += v;
+      const on = (!sel.product.size || sel.product.has(p)) && (!sel.channel.size || sel.channel.has(c));
+      const a = Math.round((on ? 0.12 + 0.6 * v / max : 0.04) * 255).toString(16).padStart(2, "0");
+      h += `<td class="cell" data-p="${p}" data-c="${c}" style="background:${acc}${a}">${(v / 1e6).toFixed(1)}</td>`;
+    });
+    h += `<td><b>${(tot / 1e6).toFixed(1)}</b></td></tr>`;
+  });
+  h += "</tbody>";
+  const t = document.getElementById("heat");
+  t.innerHTML = h;
+  t.querySelectorAll("td.cell").forEach(td => td.onclick = () => {
+    const p = td.dataset.p, c = td.dataset.c;
+    const same = sel.product.size === 1 && sel.product.has(p) && sel.channel.size === 1 && sel.channel.has(c);
+    sel.product.clear(); sel.channel.clear();
+    if (!same) { sel.product.add(p); sel.channel.add(c); }
+    render();
+  });
+}
+
+let sortKey = "month", sortDir = 1;
+function renderDetail(rows) {
+  const cols = [["month", "월"], ["product", "제품"], ["channel", "채널"], ["qty", "판매수량"], ["price", "정가"], ["disc", "할인율"], ["rev", "매출"]];
+  const sorted = [...rows].sort((a, b) => (a[sortKey] > b[sortKey] ? 1 : a[sortKey] < b[sortKey] ? -1 : 0) * sortDir);
+  const fmt = (k, v) => k === "price" || k === "rev" ? v.toLocaleString("ko-KR") : k === "disc" ? v + "%" : k === "qty" ? v.toLocaleString("ko-KR") : v;
+  let h = "<thead><tr>" + cols.map(([k, l], i) =>
+    `<th class="sort" data-k="${k}" style="text-align:${i < 3 ? "left" : "right"}">${l}${sortKey === k ? (sortDir > 0 ? " ▲" : " ▼") : ""}</th>`).join("") + "</tr></thead><tbody>";
+  h += sorted.length ? sorted.map(d => "<tr>" + cols.map(([k], i) =>
+    `<td style="text-align:${i < 3 ? "left" : "right"}">${fmt(k, d[k])}</td>`).join("") + "</tr>").join("")
+    : `<tr><td colspan="7" class="empty">선택한 조건에 맞는 데이터가 없습니다</td></tr>`;
+  const t = document.getElementById("detail");
+  t.innerHTML = h + "</tbody>";
+  t.querySelectorAll("th.sort").forEach(th => th.onclick = () => {
+    const k = th.dataset.k;
+    sortDir = sortKey === k ? -sortDir : (["qty", "price", "disc", "rev"].includes(k) ? -1 : 1);
+    sortKey = k; renderDetail(rows);
+  });
+  document.getElementById("detail-hint").textContent = `${rows.length}건 · 열 제목을 클릭하면 정렬`;
+}
+
+function render() {
+  const rows = data.filter(d => pass(d));
+  renderChips(); renderKpis(rows); renderCharts(); renderHeat(); renderDetail(rows);
+}
+document.getElementById("reset").onclick = () => { Object.values(sel).forEach(s => s.clear()); render(); };
+Chart.defaults.font.family = '"Noto Sans KR", system-ui, sans-serif';
+render();
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
+</script>
+</body>
+</html>
